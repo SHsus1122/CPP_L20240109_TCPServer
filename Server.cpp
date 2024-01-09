@@ -1,3 +1,5 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <iostream>
 #include <WinSock2.h>
 
@@ -8,6 +10,8 @@ using namespace std;
 
 int main()
 {
+	srand((unsigned int)time(nullptr));
+
 	// 윈도우 전용으로 사용하는 소켓을(.dll) 로딩하는 코드, 리눅스 사용시 코드를 변경해야합니다.
 	WSAData wsaData;
 	// 초기화 - 2.2 버전 사용 및 가져오기
@@ -59,7 +63,7 @@ int main()
 		cout << "can't bind : " << GetLastError() << endl;
 		exit(-1);
 	}
-	// 위 까지 하면 랜선을 꼽을 가상의 소켓 생성, 해당 소켓은 IPv4 형태로 만든 것이고
+	// 위 까지 하면 랜선을 꼽을	q가상의 소켓 생성, 해당 소켓은 IPv4 형태로 만든 것이고
 	// IPv4 는 랜카드 ip를 사용하며 포트번호는 우리가 선택해서 사용합니다. 그리고 bind 를 통해 연결합니다.
 
 
@@ -72,64 +76,80 @@ int main()
 	}
 
 
-	SOCKADDR_IN ClientSockAddr;
-	memset(&ClientSockAddr, 0, sizeof(ClientSockAddr));
-	int ClientSockAddrLength = sizeof(ClientSockAddr);
+	while (true)
+	{
+		SOCKADDR_IN ClientSockAddr;
+		memset(&ClientSockAddr, 0, sizeof(ClientSockAddr));
+		int ClientSockAddrLength = sizeof(ClientSockAddr);
 
 
-	/////////////////////////////////// [ 수락 단계 ]
-	// (SOCKADDR*)&ClientSockAddr : 들어온 IP 정보
-	// &ClientSockAddrLength	  : 들어온 IP 의 길이값
-	SOCKET ClientSocket = accept(ListenSocket, (SOCKADDR*)&ClientSockAddr, &ClientSockAddrLength);
-	if (ClientSocket == INVALID_SOCKET)
-	{
-		cout << "accept fail : " << GetLastError() << endl;
-		exit(-1);
-	}
+		/////////////////////////////////// [ 수락 단계 ]
+		// (SOCKADDR*)&ClientSockAddr : 들어온 IP 정보
+		// &ClientSockAddrLength	  : 들어온 IP 의 길이값
+		SOCKET ClientSocket = accept(ListenSocket, (SOCKADDR*)&ClientSockAddr, &ClientSockAddrLength);
+		if (ClientSocket == INVALID_SOCKET)
+		{
+			cout << "accept fail : " << GetLastError() << endl;
+			exit(-1);
+		}
 
 
-	/////////////////////////////////// [ 보내는 단계 ]
-	const char Buffer[] = { "Hello World" };
-	int SentByte = send(ClientSocket, Buffer, strlen(Buffer), 0);
-	if (SentByte < 0)
-	{
-		// 0 보다 작으면 못 보낸 것이며 이는 네트워크가 끊겼다는 의미입니다.
-		cout << "Error : " << GetLastError() << endl;
-		exit(-1);
-	}
-	else if (SentByte == 0)
-	{
-		cout << "Disconnected : " << GetLastError() << endl;
-		exit(-1);
-	}
-	else
-	{
-		cout << "Sent byte : " << SentByte << ", " << Buffer << endl;
-	}
+		/////////////////////////////////// [ 랜덤 숫자 기능 ]
+		int FirstNumber = rand() % 10000;		// 0~9999
+		int SecondNumber = rand() % 9999 + 1;	// 1~9999
+		int OpreatorIndex = rand() % 5;
+		char Opreator[5] = { '+', '-', '*', '/', '%' };
+
+		char Buffer[1024] = { 0, };
+		//sprintf_s(Buffer, "%d%c%d", FirstNumber, Opreator[OpreatorIndex], SecondNumber);
+		sprintf(Buffer, "%d%c%d", FirstNumber, Opreator[OpreatorIndex], SecondNumber);
 
 
-	/////////////////////////////////// [ 받는 단계 ]
-	char RecvBuffer[1024] = { 0, };
-	int RecvByte = recv(ClientSocket, RecvBuffer, sizeof(RecvBuffer), 0);
-	if (RecvByte < 0)
-	{
-		// 0 보다 작으면 못 보낸 것이며 이는 네트워크가 끊겼다는 의미입니다.
-		cout << "Error : " << GetLastError() << endl;
-		exit(-1);
-	}
-	else if (RecvByte == 0)
-	{
-		cout << "Disconnected : " << GetLastError() << endl;
-		exit(-1);
-	}
-	else
-	{
-		cout << "Recv byte : " << RecvByte << ", " << RecvBuffer << endl;
+		/////////////////////////////////// [ 보내는 단계 ]
+		int SentByte = send(ClientSocket, Buffer, (int)strlen(Buffer) + 1, 0);
+		if (SentByte < 0)
+		{
+			// 0 보다 작으면 못 보낸 것이며 이는 네트워크가 끊겼다는 의미입니다.
+			cout << "Error : " << GetLastError() << endl;
+			exit(-1);
+		}
+		else if (SentByte == 0)
+		{
+			cout << "Disconnected : " << GetLastError() << endl;
+			exit(-1);
+		}
+		else
+		{
+			cout << "Sent byte : " << SentByte << ", " << Buffer << endl;
+		}
+
+
+		/////////////////////////////////// [ 받는 단계 ]
+		char RecvBuffer[1024] = { 0, };
+		int RecvByte = recv(ClientSocket, RecvBuffer, sizeof(RecvBuffer), 0);
+		if (RecvByte < 0)
+		{
+			// 0 보다 작으면 못 보낸 것이며 이는 네트워크가 끊겼다는 의미입니다.
+			cout << "Error : " << GetLastError() << endl;
+			//exit(-1);
+			continue;
+		}
+		else if (RecvByte == 0)
+		{
+			cout << "Disconnected : " << GetLastError() << endl;
+			//exit(-1);
+			continue;
+		}
+		else
+		{
+			cout << "Recv byte : " << RecvByte << ", " << RecvBuffer << endl;
+		}
+
+		closesocket(ClientSocket);
 	}
 
 
 	/////////////////////////////////// [ 종료 단계 ]
-	closesocket(ClientSocket);
 	closesocket(ListenSocket);
 
 	// Winsocket 사용 종료 함수입니다.
