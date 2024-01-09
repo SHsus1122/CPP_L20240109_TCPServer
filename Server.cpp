@@ -20,11 +20,11 @@ int main()
 		exit(-1);	// 에러 발생시 종료시키기 위한 함수
 	}
 
-
 	// 리슨 서버(들어오기를 기다림) 방식의 소켓
 	//  - PF_INET	  : TCP, UDP 프로토콜을 사용하겠다는 의미 (추가로 IPv6 는 AF_INET6)
 	//	- SOCK_STREAM : 연결 지향형 데이터 전송(통로 개설)
-	//	- IPPROTO_TCP : TCP 수준에서 적용 가능한 소켓 옵션 선택(통로 옵션 설정)
+	//	- IPPROTO_TCP : TCP 수준에서 적용 가능한 소켓 옵션 선택(통로 옵션 설정) 
+	//					현재는 거의 TCP 만 사용하기 때문에 0 으로 해도 무방합니다.
 	SOCKET ListenSocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (ListenSocket == INVALID_SOCKET)
 	{
@@ -33,23 +33,23 @@ int main()
 		exit(-1);
 	}
 
-	// 위의 작업은 컴퓨터에 가상의 통로를 개설하는 행위를 한 것입니다.
-	// 이제 외부에서 이 통로를 통해 연결해야 하는데, 외부에서 불려지는 주소를 IP 라고 합니다.
-	// 구조체를 통해서 이 IP 를 주고 받는데 그 구조체가 SOCKADDR 입니다.
+	/*
+	위의 작업은 컴퓨터에 가상의 통로를 개설하는 행위를 한 것입니다.
+	이제 외부에서 이 통로를 통해 연결해야 하는데, 외부에서 불려지는 주소를 IP 라고 합니다.
+	구조체를 통해서 이 IP 를 주고 받는데 그 구조체가 SOCKADDR 입니다.
+	연결을 위해 필요한 Port(번역 : 항구) - 21, 22, 80, 443 지금은 이 포트들을 주로 사용합니다.
+	암호화 작업도 필요한데 가장 대표격이 RSA 입니다.
+	*/ 
 
-
-	// 연결을 위해 필요한 Port(번역 : 항구) - 21, 22, 80, 443 지금은 이 포트들을 주로 사용합니다.
-	// 암호화 작업도 필요한데 가장 대표격이 RSA 입니다.
 	// 이 변수가 우리가 사용할 IP 입니다.
 	SOCKADDR_IN ListenSockAddr;
 
-	memset(&ListenSockAddr, 0, sizeof(ListenSockAddr));	// IP 모든값 0 으로 초기화
-	//ZeroMemory(&ListenSockAddr, sizeof(ListenSockAddr));// 이는 윈도우에서만 사용하는 초기화 함수 입니다.
+	memset(&ListenSockAddr, 0, sizeof(ListenSockAddr));		// IP 초기값을 모두 0 으로 초기화
+	//ZeroMemory(&ListenSockAddr, sizeof(ListenSockAddr));	// 이는 윈도우에서만 사용하는 초기화 함수 입니다.
 
-	ListenSockAddr.sin_family = AF_INET;
-	// 4바이트 사용 및 내가 지정한 포트로 들어오는 모든 IP 를 받는다는 의미(실제로는 이렇게 하면 안됩니다)
-	ListenSockAddr.sin_addr.s_addr = INADDR_ANY;
-	ListenSockAddr.sin_port = htons(30211);		// 확인용으로 실제 통신에선 사용하지 않는 포트 번호입니다.
+	ListenSockAddr.sin_family = AF_INET;			// AF_INET	   : 주소 체계를 IPv4 로 설정
+	ListenSockAddr.sin_addr.s_addr = INADDR_ANY;	// 지정한 포트로 들어오는 모든 IP 를 받는다는 의미(실제로는 이렇게 하면 안됩니다)
+	ListenSockAddr.sin_port = htons(30211);			// 포트번호 설정 : 확인용으로 실제 통신에선 사용하지 않는 포트 번호입니다.
 
 	// 소켓을 뚫었으면 이제 랜카드와 연결을 해주는 함수입니다.
 	// 이 또한 리턴값을 받는데 위와 같이 기본값이 0 이고 나머지는 모두 실패입니다.
@@ -76,6 +76,10 @@ int main()
 	memset(&ClientSockAddr, 0, sizeof(ClientSockAddr));
 	int ClientSockAddrLength = sizeof(ClientSockAddr);
 
+
+	/////////////////////////////////// [ 수락 단계 ]
+	// (SOCKADDR*)&ClientSockAddr : 들어온 IP 정보
+	// &ClientSockAddrLength	  : 들어온 IP 의 길이값
 	SOCKET ClientSocket = accept(ListenSocket, (SOCKADDR*)&ClientSockAddr, &ClientSockAddrLength);
 	if (ClientSocket == INVALID_SOCKET)
 	{
@@ -84,6 +88,7 @@ int main()
 	}
 
 
+	/////////////////////////////////// [ 보내는 단계 ]
 	const char Buffer[] = { "Hello World" };
 	int SentByte = send(ClientSocket, Buffer, strlen(Buffer), 0);
 	if (SentByte < 0)
@@ -103,6 +108,7 @@ int main()
 	}
 
 
+	/////////////////////////////////// [ 받는 단계 ]
 	char RecvBuffer[1024] = { 0, };
 	int RecvByte = recv(ClientSocket, RecvBuffer, sizeof(RecvBuffer), 0);
 	if (RecvByte < 0)
@@ -122,8 +128,7 @@ int main()
 	}
 
 
-
-
+	/////////////////////////////////// [ 종료 단계 ]
 	closesocket(ClientSocket);
 	closesocket(ListenSocket);
 
